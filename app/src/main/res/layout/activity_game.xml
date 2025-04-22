@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    tools:context=".GameActivity">
+
+    <RelativeLayout
+
+        android:id="@+id/linearLayoutHearts"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layoutDirection="ltr"
+        app:layout_constraintBaseline_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/heart1"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/heart" />
+
+        <ImageView
+            android:id="@+id/heart2"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_toEndOf="@id/heart1"
+            android:src="@drawable/heart" />
+
+        <ImageView
+            android:id="@+id/heart3"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_toEndOf="@id/heart2"
+            android:src="@drawable/heart" />
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/linearLayoutObstacles"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="40dp"
+        android:layoutDirection="ltr"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/linearLayoutHearts">
+
+        <ImageView
+            android:id="@+id/obstacle1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/fence"
+            android:visibility="visible" />
+
+
+        <ImageView
+            android:id="@+id/obstacle2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/fence"
+            android:visibility="visible" />
+
+        <ImageView
+            android:id="@+id/obstacle3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:src="@drawable/fence"
+            android:visibility="visible" />
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/linearLayoutButtons"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="50dp"
+        android:gravity="center"
+        android:layoutDirection="ltr"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <Button
+            android:id="@+id/leftBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="left" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="70dp"
+            android:layout_toStartOf="@id/rightBtn"
+            android:layout_toEndOf="@id/leftBtn" />
+
+        <Button
+            android:id="@+id/rightBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/leftBtn"
+            android:text="right" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="25dp"
+        android:gravity="center_horizontal"
+        app:layout_constraintBottom_toTopOf="@+id/linearLayoutButtons">
+
+        <ImageView
+            android:id="@+id/car"
+            android:layout_width="80dp"
+            android:layout_height="70dp"
+            android:src="@drawable/car" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
