@@ -8,7 +8,7 @@
     android:background="#F3EEEE"
     android:layoutDirection="ltr"
     android:orientation="vertical"
-    tools:context=".GameActivity">
+    tools:context=".GameSensorActivity">
 
     <TextView
         android:id="@+id/score"
@@ -58,6 +58,8 @@
             android:layout_toEndOf="@id/heart2"
             android:src="@drawable/heart" />
     </RelativeLayout>
+
+
 
     <LinearLayout
         android:id="@+id/linearLayoutObstacles"
@@ -176,42 +178,14 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="25dp"
         android:gravity="center_horizontal"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayoutButtons">
+        android:paddingBottom="20dp"
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <ImageView
             android:id="@+id/car"
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:src="@drawable/car" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/linearLayoutButtons"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="50dp"
-        android:gravity="center"
-        android:layoutDirection="ltr"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <Button
-            android:id="@+id/leftBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="left" />
-
-        <Space
-            android:layout_width="180dp"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/rightBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="right" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,8 +1,11 @@
 package com.example.hw1
 
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,19 +15,24 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.View
 import android.view.ViewTreeObserver
-import android.widget.*
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.LatLng
 import kotlin.random.Random
 
-class GameActivity : AppCompatActivity() {
-
+class GameSensorActivity : AppCompatActivity(), SensorEventListener {
+    private lateinit var sensorManager: SensorManager
+    private lateinit var accelerometer: Sensor
     private lateinit var car: ImageView
-    private lateinit var leftBtn: Button
-    private lateinit var rightBtn: Button
     private lateinit var obstacles: List<ImageView>
     private lateinit var coins: List<ImageView>
     private lateinit var hearts: List<ImageView>
@@ -32,6 +40,9 @@ class GameActivity : AppCompatActivity() {
     private lateinit var distanceText: TextView
     private lateinit var obstacleLayout: LinearLayout
     private lateinit var coinLayout: LinearLayout
+    private var filteredX: Float? = null
+    private var tiltReset = true  // To ensure the device returns to neutral before another move
+    private var lastTiltTime = 0L
     private val handler = Handler(Looper.getMainLooper())
     private val isObstacleFalling = MutableList(5) { false }
     private val isCoinFalling = MutableList(5) { false }
@@ -50,16 +61,19 @@ class GameActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_game)
-        this.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_game_sensor)
 
         // Initialize FusedLocationProviderClient
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        // Initialize sensor
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+            ?: throw IllegalStateException("Accelerometer not available on this device")
+
         // Initialize UI elements
         car = findViewById(R.id.car)
-        leftBtn = findViewById(R.id.leftBtn)
-        rightBtn = findViewById(R.id.rightBtn)
         distanceText = findViewById(R.id.distanceText)
         scoreText = findViewById(R.id.score)
         obstacleLayout = findViewById(R.id.linearLayoutObstacles)
@@ -86,21 +100,6 @@ class GameActivity : AppCompatActivity() {
             findViewById(R.id.heart2),
             findViewById(R.id.heart3)
         )
-
-        // Set up button listeners
-        leftBtn.setOnClickListener {
-            if (carPosition > 0) {
-                carPosition--
-                updateCarPosition(carPosition)
-            }
-        }
-
-        rightBtn.setOnClickListener {
-            if (carPosition < 4) {
-                carPosition++
-                updateCarPosition(carPosition)
-            }
-        }
 
         // Initialize positions after layout is measured
         val listener = object : ViewTreeObserver.OnGlobalLayoutListener {
@@ -130,15 +129,24 @@ class GameActivity : AppCompatActivity() {
 
         // Start the game loop
         startGame()
+
+        // Handle window insets
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME)
         startGame() // Restart the game loop
     }
 
     override fun onPause() {
         super.onPause()
+        sensorManager.unregisterListener(this)
         stopGame() // Stop the game loop
     }
 
@@ -146,6 +154,61 @@ class GameActivity : AppCompatActivity() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null) // Clean up all callbacks
         gameRunnable = null // Clear reference
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        event?.let {
+            // This controls the smoothing of the tilt input over time.
+            // A lower value makes the response faster and more jittery, while a higher value makes it slower but smoother.
+            val filterFactor = 0.06f  // Faster response, less smoothing
+
+            // This controls how much the tilt input is amplified to move the car.
+            // A higher value will make the car move more with less tilt (more sensitive).
+            val tiltSensitivity = 0.4f  // More responsive to slight tilts
+
+            // This is the sensitivity threshold for the tilt detection.
+            // If the tilt input exceeds this value, the car will move in the corresponding direction (left or right).
+            val tiltThreshold = 0.4f  // Slight tilt for faster movement
+
+            // This is the neutral zone that determines when the device is considered "level" or in its neutral position
+            // (neither tilted left nor right). If the tilt value is within this range, it’s treated as neutral.
+            val neutralThreshold = 0.35555f  // Lower neutral zone for quicker reset
+
+            // This is the minimum amount of time (msec) that must pass between consecutive movements of the car.
+            // It helps to prevent the car from moving too quickly or too erratically.
+            val minTimeBetweenMoves = 100L
+
+            // Initialize filteredX once
+            if (filteredX == null) filteredX = it.values[0]
+
+            // Apply filter for faster but smoother response
+            filteredX = filteredX!! + (it.values[0] * tiltSensitivity - filteredX!!) * filterFactor
+
+            // Get current time
+            val currentTime = System.currentTimeMillis()
+
+            // Allow new tilt movement only if the device has returned to neutral
+            if (Math.abs(filteredX!!) < neutralThreshold) {
+                tiltReset = true  // Reset the tilt state immediately when within neutral threshold
+            }
+
+            // Move car if enough time has passed and the device has reset to neutral
+            if (tiltReset && currentTime - lastTiltTime > minTimeBetweenMoves) {
+                if (filteredX!! < -tiltThreshold && carPosition < 4) {
+                    carPosition++
+                    tiltReset = false  // Lock movement until device returns to neutral
+                    lastTiltTime = currentTime
+                } else if (filteredX!! > tiltThreshold && carPosition > 0) {
+                    carPosition--
+                    tiltReset = false  // Lock movement until device returns to neutral
+                    lastTiltTime = currentTime
+                }
+
+                updateCarPosition(carPosition)
+            }
+        }
     }
 
     private fun startGame() {
@@ -205,7 +268,7 @@ class GameActivity : AppCompatActivity() {
                 // Check collision using real screen coordinates
                 if (checkCollision(obstacle)) {
                     loseLife()
-                    Toast.makeText(this@GameActivity, "Crashed!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@GameSensorActivity, "Crashed!", Toast.LENGTH_SHORT).show()
                     resetObstacle(index)
                     return
                 }
@@ -238,7 +301,6 @@ class GameActivity : AppCompatActivity() {
                 // Check collision using real screen coordinates
                 if (checkCollision(coin)) {
                     coin.visibility = View.INVISIBLE
-                    // Toast.makeText(this@GameActivity, "Coin Collected!", Toast.LENGTH_SHORT).show()
                     score++
                     scoreText.text = "Score: $score"
                     resetCoin(index)
@@ -325,7 +387,7 @@ class GameActivity : AppCompatActivity() {
                 highscores.add(Triple(name, scoreValue, LatLng(lat.toDouble(), lng.toDouble())))
             }
         }
-        android.util.Log.d("Highscore", "GameActivity: Loaded highscores: $highscores")
+        android.util.Log.d("Highscore", "GameSensorActivity: Loaded highscores: $highscores")
 
         // Add new score with real GPS location
         val playerName = "Player"
@@ -338,38 +400,40 @@ class GameActivity : AppCompatActivity() {
             fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
                 if (loc != null) {
                     location = LatLng(loc.latitude, loc.longitude)
-                    android.util.Log.d("Highscore", "GameActivity: Got real location: $location")
+                    android.util.Log.d(
+                        "Highscore",
+                        "GameSensorActivity: Got real location: $location"
+                    )
                 } else {
                     android.util.Log.w(
                         "Highscore",
-                        "GameActivity: Location unavailable, using fallback"
+                        "GameSensorActivity: Location unavailable, using fallback"
                     )
                 }
                 // Add highscore after getting location
                 highscores.add(Triple(playerName, score, location))
                 android.util.Log.d(
                     "Highscore",
-                    "GameActivity: Added score: $playerName - $score at $location"
+                    "GameSensorActivity: Added score: $playerName - $score at $location"
                 )
                 saveHighscoresToPreferences(highscores, editor)
             }.addOnFailureListener { e ->
                 android.util.Log.w(
                     "Highscore",
-                    "GameActivity: Failed to get location: ${e.message}, using fallback"
+                    "GameSensorActivity: Failed to get location: ${e.message}, using fallback"
                 )
                 highscores.add(Triple(playerName, score, location))
                 android.util.Log.d(
                     "Highscore",
-                    "GameActivity: Added score: $playerName - $score at $location"
+                    "GameSensorActivity: Added score: $playerName - $score at $location"
                 )
                 saveHighscoresToPreferences(highscores, editor)
             }
         } else {
-            // Request permission and use fallback if denied
             highscores.add(Triple(playerName, score, location))
             android.util.Log.d(
                 "Highscore",
-                "GameActivity: Added score: $playerName - $score at $location (no permission)"
+                "GameSensorActivity: Added score: $playerName - $score at $location (no permission)"
             )
             saveHighscoresToPreferences(highscores, editor)
         }
@@ -384,7 +448,7 @@ class GameActivity : AppCompatActivity() {
         if (highscores.size > 10) {
             highscores.subList(10, highscores.size).clear()
         }
-        android.util.Log.d("Highscore", "GameActivity: Sorted highscores: $highscores")
+        android.util.Log.d("Highscore", "GameSensorActivity: Sorted highscores: $highscores")
 
         // Save back to SharedPreferences
         try {
@@ -396,9 +460,12 @@ class GameActivity : AppCompatActivity() {
                 editor.putFloat("lng_$index", location.longitude.toFloat())
             }
             editor.apply()
-            android.util.Log.d("Highscore", "GameActivity: Saved highscores: $highscores")
+            android.util.Log.d("Highscore", "GameSensorActivity: Saved highscores: $highscores")
         } catch (e: Exception) {
-            android.util.Log.e("Highscore", "GameActivity: Failed to save highscores: ${e.message}")
+            android.util.Log.e(
+                "Highscore",
+                "GameSensorActivity: Failed to save highscores: ${e.message}"
+            )
         }
     }
 
