@@ -410,6 +410,6 @@ class GameActivity : AppCompatActivity() {
         score = 0
         scoreText.text = "Score: 0"
         distanceText.text = "Distance: 0"
-        Toast.makeText(this, "Game Over!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Game Over!", Toast.LENGTH_SHORT).show()
     }
 }
