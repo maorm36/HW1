@@ -3,6 +3,7 @@ package com.example.hw1
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -47,6 +48,7 @@ class GameActivity : AppCompatActivity() {
         0 // Store the bottom position of the coin layout in screen coordinates
     private var gameRunnable: Runnable? = null // Store the game loop runnable
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var crashSound: MediaPlayer // MediaPlayer for crash sound
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +57,9 @@ class GameActivity : AppCompatActivity() {
 
         // Initialize FusedLocationProviderClient
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        // Initialize crash sound
+        crashSound = MediaPlayer.create(this, R.raw.crash)
 
         // Initialize UI elements
         car = findViewById(R.id.car)
@@ -146,6 +151,7 @@ class GameActivity : AppCompatActivity() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null) // Clean up all callbacks
         gameRunnable = null // Clear reference
+        crashSound.release() // Release MediaPlayer resources
     }
 
     private fun startGame() {
@@ -288,6 +294,7 @@ class GameActivity : AppCompatActivity() {
         if (lives > 0) {
             lives--
             hearts[lives].visibility = View.INVISIBLE
+            crashSound.start() // Play crash sound
             if (lives == 0) {
                 endGame()
             }

@@ -6,6 +6,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -40,6 +41,7 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var distanceText: TextView
     private lateinit var obstacleLayout: LinearLayout
     private lateinit var coinLayout: LinearLayout
+    private lateinit var crashSound: MediaPlayer // MediaPlayer for crash sound
     private var filteredX: Float? = null
     private var tiltReset = true  // To ensure the device returns to neutral before another move
     private var lastTiltTime = 0L
@@ -66,6 +68,9 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
 
         // Initialize FusedLocationProviderClient
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        // Initialize crash sound
+        crashSound = MediaPlayer.create(this, R.raw.crash)
 
         // Initialize sensor
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -154,6 +159,7 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null) // Clean up all callbacks
         gameRunnable = null // Clear reference
+        crashSound.release() // Release MediaPlayer resources
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -350,6 +356,7 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
         if (lives > 0) {
             lives--
             hearts[lives].visibility = View.INVISIBLE
+            crashSound.start() // Play crash sound
             if (lives == 0) {
                 endGame()
             }
