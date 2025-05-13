@@ -273,8 +273,9 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
 
                 // Check collision using real screen coordinates
                 if (checkCollision(obstacle)) {
+                    if(lives != 1)
+                        Toast.makeText(this@GameSensorActivity, "Crashed!", Toast.LENGTH_SHORT).show()
                     loseLife()
-                    Toast.makeText(this@GameSensorActivity, "Crashed!", Toast.LENGTH_SHORT).show()
                     resetObstacle(index)
                     return
                 }

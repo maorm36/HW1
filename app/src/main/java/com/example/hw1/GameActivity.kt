@@ -210,8 +210,9 @@ class GameActivity : AppCompatActivity() {
 
                 // Check collision using real screen coordinates
                 if (checkCollision(obstacle)) {
+                    if(lives != 1)
+                        Toast.makeText(this@GameActivity, "Crashed!", Toast.LENGTH_SHORT).show()
                     loseLife()
-                    Toast.makeText(this@GameActivity, "Crashed!", Toast.LENGTH_SHORT).show()
                     resetObstacle(index)
                     return
                 }
