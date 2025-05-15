@@ -43,8 +43,6 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var coinLayout: LinearLayout
     private lateinit var crashSound: MediaPlayer // MediaPlayer for crash sound
     private var filteredX: Float? = null
-    private var tiltReset = true  // To ensure the device returns to neutral before another move
-    private var lastTiltTime = 0L
     private val handler = Handler(Looper.getMainLooper())
     private val isObstacleFalling = MutableList(5) { false }
     private val isCoinFalling = MutableList(5) { false }
@@ -166,25 +164,9 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent?) {
         event?.let {
-            // This controls the smoothing of the tilt input over time.
-            // A lower value makes the response faster and more jittery, while a higher value makes it slower but smoother.
+            // Smoothing parameters
             val filterFactor = 0.06f  // Faster response, less smoothing
-
-            // This controls how much the tilt input is amplified to move the car.
-            // A higher value will make the car move more with less tilt (more sensitive).
             val tiltSensitivity = 0.4f  // More responsive to slight tilts
-
-            // This is the sensitivity threshold for the tilt detection.
-            // If the tilt input exceeds this value, the car will move in the corresponding direction (left or right).
-            val tiltThreshold = 0.4f  // Slight tilt for faster movement
-
-            // This is the neutral zone that determines when the device is considered "level" or in its neutral position
-            // (neither tilted left nor right). If the tilt value is within this range, it’s treated as neutral.
-            val neutralThreshold = 0.35555f  // Lower neutral zone for quicker reset
-
-            // This is the minimum amount of time (msec) that must pass between consecutive movements of the car.
-            // It helps to prevent the car from moving too quickly or too erratically.
-            val minTimeBetweenMoves = 100L
 
             // Initialize filteredX once
             if (filteredX == null) filteredX = it.values[0]
@@ -192,26 +174,19 @@ class GameSensorActivity : AppCompatActivity(), SensorEventListener {
             // Apply filter for faster but smoother response
             filteredX = filteredX!! + (it.values[0] * tiltSensitivity - filteredX!!) * filterFactor
 
-            // Get current time
-            val currentTime = System.currentTimeMillis()
-
-            // Allow new tilt movement only if the device has returned to neutral
-            if (Math.abs(filteredX!!) < neutralThreshold) {
-                tiltReset = true  // Reset the tilt state immediately when within neutral threshold
+            // Map filteredX to one of five lanes (positions 0 to 4)
+            val newPosition = when (filteredX!!) {
+                in -10.0f..-2.0f -> 4 // Rightmost lane (strong right tilt)
+                in -2.0f..-0.6f -> 3  // Right-middle lane
+                in -0.6f..0.6f -> 2   // Center lane (neutral)
+                in 0.6f..2.0f -> 1    // Left-middle lane
+                in 2.0f..10.0f -> 0   // Leftmost lane (strong left tilt)
+                else -> carPosition   // Maintain current position for extreme values
             }
 
-            // Move car if enough time has passed and the device has reset to neutral
-            if (tiltReset && currentTime - lastTiltTime > minTimeBetweenMoves) {
-                if (filteredX!! < -tiltThreshold && carPosition < 4) {
-                    carPosition++
-                    tiltReset = false  // Lock movement until device returns to neutral
-                    lastTiltTime = currentTime
-                } else if (filteredX!! > tiltThreshold && carPosition > 0) {
-                    carPosition--
-                    tiltReset = false  // Lock movement until device returns to neutral
-                    lastTiltTime = currentTime
-                }
-
+            // Update car position only if it has changed
+            if (newPosition != carPosition) {
+                carPosition = newPosition
                 updateCarPosition(carPosition)
             }
         }
